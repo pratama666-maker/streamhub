@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>StreamHub - Platform Streaming Video</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+  /* Reset */
+  * {
+    margin: 0; padding: 0; box-sizing: border-box;
+  }
+  body {
+    font-family: 'Poppins', sans-serif;
+    background: #121212;
+    color: #eee;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+  a {
+    color: #1e90ff;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+  /* Header */
+  header {
+    background: #181818;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 1px solid #333;
+  }
+  #logo {
+    font-weight: 700;
+    font-size: 1.8rem;
+    color: #1e90ff;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.3s ease;
+    white-space: nowrap;
+  }
+  #logo:hover {
+    color: #1cb0ff;
+  }
+  #search-container {
+    flex-grow: 1;
+    max-width: 500px;
+    position: relative;
+  }
+  #search-input {
+    width: 100%;
+    padding: 8px 45px 8px 12px;
+    font-size: 1rem;
+    border-radius: 25px;
+    border: none;
+    outline: none;
+    background: #222;
+    color: #eee;
+    transition: background-color 0.3s;
+  }
+  #search-input::placeholder {
+    color: #aaa;
+  }
+  #search-btn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: #1e90ff;
+    font-size: 1.3rem;
+    cursor: pointer;
+  }
+  #search-btn:focus {
+    outline: none;
+  }
+
+  /* Layout */
+  main {
+    flex-grow: 1;
+    display: flex;
+    gap: 15px;
+    padding: 15px 20px 30px 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  /* Video list scroll */
+  section#video-list-section {
+    flex: 2.5;
+    overflow-y: auto;
+    height: calc(100vh - 72px);
+    padding-right: 4px;
+  }
+  section#video-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+    gap: 15px;
+  }
+  /* Video card */
+  .video-card {
+    background: #1e1e1e;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    transition: background-color 0.3s;
+    box-shadow: 0 0 15px transparent;
+  }
+  .video-card:hover {
+    background: #2c2c2c;
+    box-shadow: 0 0 15px #1e90ffaa;
+  }
+  .thumbnail {
+    width: 100%;
+    aspect-ratio: 16/9;
+    border-radius: 8px 8px 0 0;
+    background-size: cover;
+    background-position: center;
+  }
+  .video-info {
+    padding: 8px 12px 12px 12px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .video-title {
+    font-size: 0.975rem;
+    font-weight: 600;
+    color: #eee;
+    margin-bottom: 4px;
+    line-height: 1.2;
+  }
+  .video-channel {
+    font-size: 0.85rem;
+    color: #ccc;
+    user-select: none;
+  }
+
+  /* Player Section */
+  section#player-section {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 72px);
+  }
+  #player-wrapper {
+    background: #111;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    user-select: none;
+  }
+  #video-frame {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: black;
+  }
+  #loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(18, 18, 18, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+  /* Pixel art triangle loader */
+  .pixel-triangle {
+    width: 48px;
+    height: 48px;
+    position: relative;
+  }
+  .pixel-triangle > div {
+    width: 8px;
+    height: 8px;
+    background: #1e90ff;
+    position: absolute;
+    transition: background-color 0.3s ease;
+  }
+  /* Triangular arrangement (7 rows) */
+  .row1 { top: 0; left: 20px; }
+  .row2a { top: 8px; left: 12px; }
+  .row2b { top: 8px; left: 28px; }
+  .row3a { top: 16px; left: 4px; }
+  .row3b { top: 16px; left: 20px; }
+  .row3c { top: 16px; left: 36px; }
+  .row4a { top: 24px; left: 0; }
+  .row4b { top: 24px; left: 16px; }
+  .row4c { top: 24px; left: 32px; }
+  .row5a { top: 32px; left: 8px; }
+  .row5b { top: 32px; left: 24px; }
+  .row6 { top: 40px; left: 16px; }
+
+  /* Animate blinking */
+  @keyframes blinkPixels {
+    0%, 100% { background-color: #1e90ff; }
+    50% { background-color: #62b0ff; }
+  }
+  .pixel-triangle > div {
+    animation: blinkPixels 1.2s infinite ease-in-out alternate;
+  }
+  .pixel-triangle > div:nth-child(odd) {
+    animation-delay: 0s;
+  }
+  .pixel-triangle > div:nth-child(even) {
+    animation-delay: 0.6s;
+  }
+
+  /* Controls below player */
+  #video-details {
+    background: #161616;
+    padding: 15px 20px;
+    border-radius: 0 0 8px 8px;
+    color: #ddd;
+    font-size: 0.9rem;
+    user-select: none;
+  }
+  #video-title-big {
+    font-weight: 600;
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+    color: #fff;
+  }
+  #video-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .btn-action {
+    background: #2a2a2a;
+    border-radius: 5px;
+    padding: 6px 10px;
+    cursor: pointer;
+    color: #ccc;
+    border: none;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.3s ease;
+  }
+  .btn-action:hover {
+    background: #1e90ff;
+    color: white;
+  }
+  .btn-action.liked, .btn-action.following {
+    background: #1e90ff;
+    color: white;
+  }
+
+  /* Small icons for buttons */
+  .btn-action svg {
+    width: 16px; height: 16px;
+    fill: currentColor;
+  }
+  /* Like/dislike counts */
+  #like-count, #dislike-count, #follow-count {
+    font-size: 0.85rem;
+    user-select: none;
+  }
+
+  /* Comments Section */
+  #comments-section {
+    flex-grow: 1;
+    margin-top: 10px;
+    background: #1a1a1a;
+    border-radius: 8px;
+    padding: 15px 20px;
+    overflow-y: auto;
+  }
+  #comments-section h3 {
+    margin-bottom: 10px;
+    font-weight: 600;
+    color: #e0e0e0;
+  }
+  #comment-list {
+    max-height: 180px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+  }
+  .comment-item {
+    padding: 8px 0;
+    border-bottom: 1px solid #333;
+  }
+  .comment-user {
+    font-weight: 600;
+    color: #1e90ff;
+  }
+  .comment-text {
+    margin-left: 8px;
+    font-size: 0.9rem;
+    color: #ccc;
+  }
+  #comment-form {
+    display: flex;
+    gap: 8px;
+  }
+  #comment-input {
+    flex-grow: 1;
+    padding: 8px 10px;
+    border-radius: 20px;
+    border: none;
+    outline: none;
+    font-size: 0.9rem;
+    background: #222;
+    color: #eee;
+  }
+  #comment-submit {
+    background: #1e90ff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+  }
+  #comment-submit:hover {
+    background: #1791ff;
+  }
+
+  /* Related Videos Section */
+  #related-videos-section {
+    margin-top: 15px;
+  }
+  #related-videos-title {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 6px;
+    color: #ddd;
+  }
+  #related-video-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit,minmax(140px, 1fr));
+    gap: 12px;
+  }
+  .related-video-card {
+    background: #242424;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  .related-video-card:hover {
+    background: #1e90ff;
+  }
+  .related-thumb {
+    width: 100%;
+    aspect-ratio: 16/9;
+    border-radius: 6px 6px 0 0;
+    background-size: cover;
+    background-position: center;
+  }
+  .related-info {
+    padding: 6px 8px;
+  }
+  .related-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #eee;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+  }
+
+  /* Right Sidebar for live streams and ads */
+  aside#right-sidebar {
+    flex: 1.5;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-height: calc(100vh - 72px);
+    overflow-y: auto;
+  }
+  /* Live Streams */
+  #live-streams {
+    background: #1e1e1e;
+    border-radius: 8px;
+    padding: 15px 15px 10px 15px;
+  }
+  #live-streams h3 {
+    margin-bottom: 12px;
+    font-weight: 600;
+    color: #e0e0e0;
+    user-select: none;
+  }
+  .live-stream-card {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #2a2a2a;
+    transition: background-color 0.3s ease;
+  }
+  .live-stream-card:hover {
+    background: #1e90ff;
+  }
+  .live-thumb {
+    width: 120px;
+    flex-shrink: 0;
+    aspect-ratio: 16/9;
+    background-size: cover;
+    background-position: center;
+    border-radius: 6px;
+  }
+  .live-info {
+    flex-grow: 1;
+    padding: 6px 8px;
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .live-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+  .live-channel {
+    font-size: 0.85rem;
+    color: #aaa;
+  }
+
+  /* Sliding Ads */
+  #ads-slider {
+    background: #1e1e1e;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    height: 140px;
+  }
+  #ads-slider img {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    cursor: pointer;
+    user-select: none;
+  }
+  #ads-slider .cta-text {
+    position: absolute;
+    bottom: 15px;
+    left: 15px;
+    background: rgba(30,144,255,0.8);
+    color: white;
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 6px 10px;
+    border-radius: 4px;
+    user-select: none;
+    box-shadow: 0 0 8px rgba(30,144,255,0.9);
+  }
+
+  /* Category Tabs */
+  #category-bar {
+    background: #181818;
+    margin: 15px 20px 0 20px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    display: flex;
+    gap: 15px;
+    overflow-x: auto;
+    max-width: 1200px;
+    user-select: none;
+  }
+  #category-bar::-webkit-scrollbar {
+    height: 6px;
+  }
+  #category-bar::-webkit-scrollbar-thumb {
+    background: #1e90ff;
+    border-radius: 3px;
+  }
+  .category-tab {
+    padding: 6px 14px;
+    background: #222;
+    border-radius: 20px;
+    color: #ccc;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  .category-tab.active, .category-tab:hover {
+    background: #1e90ff;
+    color: #fff;
+  }
+
+  /* Scrollbar styling for viewing areas */
+  section#video-list-section::-webkit-scrollbar,
+  aside#right-sidebar::-webkit-scrollbar,
+  #comments-section::-webkit-scrollbar {
+    width: 8px;
+  }
+  section#video-list-section::-webkit-scrollbar-thumb,
+  aside#right-sidebar::-webkit-scrollbar-thumb,
+  #comments-section::-webkit-scrollbar-thumb {
+    background-color: #444;
+    border-radius: 4px;
+  }
+
+  /* Share dropdown */
+  #share-dropdown {
+    position: absolute;
+    background: #222;
+    border-radius: 6px;
+    border: 1px solid #333;
+    padding: 6px 14px;
+    font-size: 0.9rem;
+    color: #eee;
+    display: none;
+    z-index: 99;
+    user-select: text;
+    width: 230px;
+  }
+  #share-dropdown input {
+    width: 100%;
+    background: #333;
+    color: #eee;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.9rem;
+    user-select: all;
+    cursor: pointer;
+  }
+  #share-dropdown input:focus {
+    outline: none;
+    background: #444;
+  }
+
+  /* Responsive */
+  @media (max-width: 1080px) {
+    main {
+      flex-direction: column;
+      padding: 10px;
+    }
+    section#video-list-section {
+      height: 380px;
+      margin-bottom: 20px;
+    }
+    section#player-section {
+      max-height: none;
+      margin-bottom: 20px;
+    }
+    aside#right-sidebar {
+      max-height: none;
+      flex-direction: row;
+      gap: 10px;
+      overflow-x: auto;
+    }
+    #live-streams, #ads-slider {
+      flex: 1 0 350px;
+      height: 140px;
+    }
+  }
+  @media (max-width: 600px) {
+    #search-container {
+      max-width: 100%;
+    }
+    #logo {
+      font-size: 1.3rem;
+    }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div id="logo" title="StreamHub">StreamHub</div>
+  <div id="search-container">
+    <input type="search" id="search-input" placeholder="Cari video..." aria-label="Cari video" autocomplete="off" />
+    <button id="search-btn" aria-label="Cari"><svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" class="feather feather-search" viewBox="0 0 24 24" width="20" height="20">
+      <circle cx="11" cy="11" r="8"/>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg></button>
+  </div>
+</header>
+
+<nav id="category-bar" aria-label="Kategori video">
+  <!-- dynamic categories here -->
+</nav>
+
+<main>
+  <section id="video-list-section" aria-label="Daftar video">
+    <div id="video-list" role="list">
+      <!-- video cards inserted here -->
+    </div>
+    <div id="loading-more" style="margin-top:10px; text-align:center; color:#777; user-select:none; display:none;">Memuat lebih banyak video...</div>
+  </section>
+
+  <section id="player-section" aria-label="Pemutar video">
+    <div id="player-wrapper">
+      <div id="loading-overlay" aria-live="polite" aria-busy="true" title="Memuat video">
+        <div class="pixel-triangle" aria-hidden="true">
+          <div class="row1"></div>
+          <div class="row2a"></div>
+          <div class="row2b"></div>
+          <div class="row3a"></div>
+          <div class="row3b"></div>
+          <div class="row3c"></div>
+          <div class="row4a"></div>
+          <div class="row4b"></div>
+          <div class="row4c"></div>
+          <div class="row5a"></div>
+          <div class="row5b"></div>
+          <div class="row6"></div>
+        </div>
+      </div>
+      <iframe
+        id="video-frame"
+        title="Video player"
+        frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture"
+        allowfullscreen
+        src=""
+      ></iframe>
+    </div>
+
+    <div id="video-details" aria-live="polite">
+      <div id="video-title-big" aria-label="Judul video">Pilih video untuk ditonton</div>
+      <div id="video-actions" role="group" aria-label="Aksi video">
+        <button class="btn-action" id="btn-like" aria-pressed="false" title="Suka (Like)" type="button" aria-label="Like video">
+          <svg viewBox="0 0 24 24"><path d="M14 9l-1-2-1 2-2 3 4 6h6v-7l-6-2z"></path></svg> <span id="like-count">0</span>
+        </button>
+        <button class="btn-action" id="btn-dislike" aria-pressed="false" title="Tidak suka (Dislike)" type="button" aria-label="Dislike video">
+          <svg viewBox="0 0 24 24"><path d="M10 15l1 2 1-2 2-3-4-6H5v7l6 2z"></path></svg> <span id="dislike-count">0</span>
+        </button>
+        <button class="btn-action" id="btn-share" type="button" title="Bagikan video" aria-haspopup="true" aria-expanded="false" aria-controls="share-dropdown" aria-label="Bagikan video">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" class="feather feather-share" viewBox="0 0 24 24" width="16" height="16">
+            <circle cx="18" cy="5" r="3"/>
+            <circle cx="6" cy="12" r="3"/>
+            <circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+          Bagikan
+        </button>
+        <button class="btn-action" id="btn-follow" type="button" title="Ikuti kanal" aria-pressed="false" aria-label="Follow channel">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" class="feather feather-user-plus" viewBox="0 0 24 24" width="16" height="16">
+            <path d="M16 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M6 21v-2a4 4 0 0 1 3-3.87"/>
+            <circle cx="12" cy="7" r="4"/>
+            <line x1="18" y1="8" x2="23" y2="8"/>
+            <line x1="20.5" y1="5.5" x2="20.5" y2="10.5"/>
+          </svg>
+          Ikuti <span id="follow-count">0</span>
+        </button>
+      </div>
+
+      <div id="comments-section" aria-label="Bagian komentar">
+        <h3>Komentar</h3>
+        <div id="comment-list" role="list" aria-live="polite" aria-relevant="additions">Belum ada komentar.</div>
+        <form id="comment-form" aria-label="Formulir tambah komentar">
+          <input type="text" id="comment-input" placeholder="Tulis komentar..." aria-label="Tulis komentar" autocomplete="off" required />
+          <button id="comment-submit" type="submit" aria-label="Kirim komentar">Kirim</button>
+        </form>
+      </div>
+
+      <section id="related-videos-section" aria-label="Video terkait">
+        <div id="related-videos-title">Video terkait</div>
+        <div id="related-video-list" role="list">
+          <!-- related videos inserted here -->
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <aside id="right-sidebar" aria-label="Sidebar kanan">
+    <section id="live-streams" aria-label="Live streaming">
+      <h3>Live Streaming</h3>
+      <div id="live-list" role="list">
+        <!-- live streams cards here -->
+      </div>
+    </section>
+
+    <section id="ads-slider" aria-label="Iklan dan Call to Action">
+      <img src="" alt="Iklan" id="ad-image" />
+      <div class="cta-text" id="ad-cta">Klik di sini untuk info menarik!</div>
+    </section>
+  </aside>
+</main>
+
+<!-- Share dropdown for copy link -->
+<div id="share-dropdown">
+  <input type="text" readonly id="share-link-input" aria-label="Link video untuk dibagikan" />
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // API Setup
+  const API_KEY = 'AIzaSyCCy7Re-rFJaxduYaMNHQJsfx_lLZualEo';
+  const API_BASE = 'https://www.googleapis.com/youtube/v3';
+  const SEARCH_TYPE = 'video|channel|playlist';
+
+  // Elements
+  const logoEl = document.getElementById('logo');
+  const searchInput = document.getElementById('search-input');
+  const searchBtn = document.getElementById('search-btn');
+  const videoListSection = document.getElementById('video-list-section');
+  const videoListEl = document.getElementById('video-list');
+  const loadingMoreEl = document.getElementById('loading-more');
+  const playerWrapper = document.getElementById('player-wrapper');
+  const videoFrame = document.getElementById('video-frame');
+  const loadingOverlay = document.getElementById('loading-overlay');
+  const videoTitleBig = document.getElementById('video-title-big');
+  const btnLike = document.getElementById('btn-like');
+  const btnDislike = document.getElementById('btn-dislike');
+  const likeCountEl = document.getElementById('like-count');
+  const dislikeCountEl = document.getElementById('dislike-count');
+  const btnShare = document.getElementById('btn-share');
+  const shareDropdown = document.getElementById('share-dropdown');
+  const shareLinkInput = document.getElementById('share-link-input');
+  const btnFollow = document.getElementById('btn-follow');
+  const followCountEl = document.getElementById('follow-count');
+  const commentListEl = document.getElementById('comment-list');
+  const commentForm = document.getElementById('comment-form');
+  const commentInput = document.getElementById('comment-input');
+  const relatedVideoList = document.getElementById('related-video-list');
+  const liveList = document.getElementById('live-list');
+  const adImage = document.getElementById('ad-image');
+  const adCTA = document.getElementById('ad-cta');
+  const categoryBar = document.getElementById('category-bar');
+
+  // Variables
+  let nextPageToken = null;
+  let currentQuery = '';
+  let isFetching = false;
+  let currentVideo = null; // holds object {videoId, title, channelId, channelTitle}
+  let history = JSON.parse(localStorage.getItem('streamhub_history') || '[]');
+  let likedVideos = JSON.parse(localStorage.getItem('streamhub_likes') || '{}');
+  let dislikedVideos = JSON.parse(localStorage.getItem('streamhub_dislikes') || '{}');
+  let followedChannels = JSON.parse(localStorage.getItem('streamhub_followed') || '{}');
+  let commentsData = JSON.parse(localStorage.getItem('streamhub_comments') || '{}');
+  let categories = [
+    {id: '', title: 'Semua'},
+    {id: '1', title: 'Film & Animasi'},
+    {id: '2', title: 'Mobil & Kendaraan'},
+    {id: '10', title: 'Musik'},
+    {id: '15', title: 'Hewan Peliharaan & Hewan'},
+    {id: '17', title: 'Olahraga'},
+    {id: '19', title: 'Perjalanan & Acara'},
+    {id: '20', title: 'Game'},
+    {id: '22', title: 'Orang & Blog'},
+    {id: '23', title: 'Komedi'},
+    {id: '24', title: 'Hiburan'},
+    {id: '25', title: 'Berita & Politik'},
+    {id: '26', title: 'Tutorial & Gaya'},
+    {id: '27', title: 'Sains & Teknologi'},
+    {id: '28', title: 'Filantropi & Aktivisme'}
+  ];
+  let selectedCategory = '';
+  let adIndex = 0;
+  const ads = [
+    {
+      img: 'https://via.placeholder.com/350x140/1e90ff/fff?text=Promo+Menarik+StreamHub',
+      url: 'https://www.streamhub.com/promo',
+      cta: 'Dapatkan Diskon Sekarang!'
+    },
+    {
+      img: 'https://via.placeholder.com/350x140/f45555/fff?text=Streaming+Live+Terbaik',
+      url: 'https://www.streamhub.com/live',
+      cta: 'Tonton Live Streaming Seru!'
+    },
+    {
+      img: 'https://via.placeholder.com/350x140/259b24/fff?text=Langganan+Premium',
+      url: 'https://www.streamhub.com/premium',
+      cta: 'Langganan Premium Hemat!'
+    }
+  ];
+
+  // Helper functions
+
+  function formatCount(num) {
+    if (num === undefined || num === null) return '0';
+    if (num < 1000) return num.toString();
+    if (num < 1e6) return (num / 1e3).toFixed(1) + ' rb';
+    if (num < 1e9) return (num / 1e6).toFixed(1) + ' jt';
+    return (num / 1e9).toFixed(1) + ' M';
+  }
+
+  function showLoading(show = true) {
+    loadingOverlay.style.display = show ? 'flex' : 'none';
+  }
+  function showLoadingMore(show = true) {
+    loadingMoreEl.style.display = show ? 'block' : 'none';
+  }
+
+  // Create video card element
+  function createVideoCard(video) {
+    const card = document.createElement('div');
+    card.className = 'video-card';
+    card.setAttribute('role', 'listitem');
+    // thumbnail:
+    const thumb = document.createElement('div');
+    thumb.className = 'thumbnail';
+    thumb.style.backgroundImage = `url(${video.thumbnail})`;
+    card.appendChild(thumb);
+    // info:
+    const info = document.createElement('div');
+    info.className = 'video-info';
+    // title:
+    const title = document.createElement('div');
+    title.className = 'video-title';
+    title.textContent = video.title;
+    info.appendChild(title);
+    // channel:
+    const channel = document.createElement('div');
+    channel.className = 'video-channel';
+    channel.textContent = video.channelTitle;
+    info.appendChild(channel);
+    card.appendChild(info);
+    card.onclick = () => loadVideo(video);
+    return card;
+  }
+
+  // Create related video card (smaller)
+  function createRelatedVideoCard(video) {
+    const card = document.createElement('div');
+    card.className = 'related-video-card';
+    card.setAttribute('role', 'listitem');
+    // thumbnail
+    const thumb = document.createElement('div');
+    thumb.className = 'related-thumb';
+    thumb.style.backgroundImage = `url(${video.thumbnail})`;
+    card.appendChild(thumb);
+    // info
+    const info = document.createElement('div');
+    info.className = 'related-info';
+    const title = document.createElement('div');
+    title.className = 'related-title';
+    title.textContent = video.title;
+    info.appendChild(title);
+    card.appendChild(info);
+    card.onclick = () => loadVideo(video);
+    return card;
+  }
+
+  // Create live stream card
+  function createLiveStreamCard(video) {
+    const card = document.createElement('div');
+    card.className = 'live-stream-card';
+    card.setAttribute('role', 'listitem');
+    // thumbnail
+    const thumb = document.createElement('div');
+    thumb.className = 'live-thumb';
+    thumb.style.backgroundImage = `url(${video.thumbnail})`;
+    card.appendChild(thumb);
+    // info
+    const info = document.createElement('div');
+    info.className = 'live-info';
+    const title = document.createElement('div');
+    title.className = 'live-title';
+    title.textContent = video.title;
+    info.appendChild(title);
+    const channel = document.createElement('div');
+    channel.className = 'live-channel';
+    channel.textContent = video.channelTitle;
+    info.appendChild(channel);
+    card.appendChild(info);
+    card.onclick = () => loadVideo(video);
+    return card;
+  }
+
+  // Load video to player
+  async function loadVideo(video) {
+    if (!video || !video.videoId) return;
+
+    currentVideo = video;
+    showLoading(true);
+    videoFrame.src = '';
+    videoTitleBig.textContent = video.title || 'Video';
+    
+    // Update iframe src with autoplay
+    videoFrame.src = `https://www.youtube.com/embed/${video.videoId}?autoplay=1&rel=0&modestbranding=1`;
+
+    // Update like/dislike/follow status and counts
+    updateVideoStats(video.videoId, video.channelId);
+
+    // Load related videos by keywords in title (simple)
+    fetchRelatedVideos(video.videoId, video.title);
+
+    // Load comments from local storage only (simulate)
+    loadComments(video.videoId);
+
+    // Save to history
+    addVideoToHistory(video);
+
+    // Hide share dropdown
+    hideShareDropdown();
+
+    // Hide loading after iframe is ready (wait a bit as we can't detect YT player event)
+    setTimeout(() => {
+      showLoading(false);
+    }, 2200);
+  }
+
+  // Update likes/dislikes/follow states and counts UI
+  async function updateVideoStats(videoId, channelId) {
+    // Likes and dislikes come from localStorage (simulate)
+    const likes = likedVideos[videoId] || 0;
+    const dislikes = dislikedVideos[videoId] || 0;
+    likeCountEl.textContent = formatCount(likes);
+    dislikeCountEl.textContent = formatCount(dislikes);
+    btnLike.classList.toggle('liked', likes > 0);
+    btnLike.setAttribute('aria-pressed', likes > 0 ? "true" : "false");
+    btnDislike.classList.toggle('disliked', dislikes > 0);
+    btnDislike.setAttribute('aria-pressed', dislikes > 0 ? "true" : "false");
+
+    // Follow count simulated, channelId followed count in localstorage
+    const following = !!followedChannels[channelId];
+    btnFollow.classList.toggle('following', following);
+    btnFollow.setAttribute('aria-pressed', following ? "true" : "false");
+    // Show dummy follower count for demo, between 100k-10M for channel
+    let dummyCount = followedChannels[channelId] ?? Math.floor(100000 + Math.random() * 9900000);
+    followCountEl.textContent = formatCount(dummyCount);
+  }
+
+  // Add video to history
+  function addVideoToHistory(video) {
+    // Remove duplicate in history
+    history = history.filter(v => v.videoId !== video.videoId);
+    // Push front
+    history.unshift(video);
+    if(history.length > 30) history.pop(); // keep max 30
+    localStorage.setItem('streamhub_history', JSON.stringify(history));
+  }
+
+  // Load comments for video from localStorage simulation
+  function loadComments(videoId) {
+    commentListEl.innerHTML = '';
+    let comments = commentsData[videoId] || [];
+    if(comments.length === 0) {
+      commentListEl.textContent = 'Belum ada komentar.';
+      return;
+    }
+    comments.forEach(cmt => {
+      const div = document.createElement('div');
+      div.className = 'comment-item';
+      const user = document.createElement('span');
+      user.className = 'comment-user';
+      user.textContent = cmt.user;
+      const text = document.createElement('span');
+      text.className = 'comment-text';
+      text.textContent = cmt.text;
+      div.appendChild(user);
+      div.appendChild(text);
+      commentListEl.appendChild(div);
+    });
+  }
+
+  // Add comment to current video in localStorage simulation
+  function addComment(text) {
+    if(!currentVideo) return;
+    let videoId = currentVideo.videoId;
+    if(!commentsData[videoId]) commentsData[videoId] = [];
+    commentsData[videoId].push({user:'Anda', text: text});
+    localStorage.setItem('streamhub_comments', JSON.stringify(commentsData));
+    loadComments(videoId);
+  }
+
+  // Fetch videos from YouTube Search API
+  async function fetchVideos(query = '', pageToken = null, categoryId = '') {
+    isFetching = true;
+    showLoadingMore(true);
+
+    const params = new URLSearchParams({
+      key: API_KEY,
+      part: 'snippet',
+      maxResults: '12',
+      q: query || 'trending',
+      type: 'video',
+      videoEmbeddable: 'true',
+      pageToken: pageToken || '',
+      videoCategoryId: categoryId || '',
+      safeSearch: 'strict',
+    });
+
+    const url = `${API_BASE}/search?${params.toString()}`;
+    //console.log('Fetching videos:', url);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('API response not ok');
+      const data = await response.json();
+      nextPageToken = data.nextPageToken || null;
+      // Map items to video objects:
+      const videos = data.items.map(item => ({
+        videoId: item.id.videoId,
+        title: item.snippet.title,
+        thumbnail: item.snippet.thumbnails.medium.url,
+        channelTitle: item.snippet.channelTitle,
+        channelId: item.snippet.channelId,
+      }));
+      isFetching = false;
+      showLoadingMore(false);
+      return videos;
+    } catch (err) {
+      console.error('Failed to fetch videos', err);
+      isFetching = false;
+      showLoadingMore(false);
+      return [];
+    }
+  }
+
+  // Fetch related videos by video id and keyword
+  async function fetchRelatedVideos(videoId, keyword) {
+    relatedVideoList.innerHTML = '';
+    // First try related videos from API:
+    const params = new URLSearchParams({
+      key: API_KEY,
+      part: 'snippet',
+      maxResults: '10',
+      relatedToVideoId: videoId,
+      type: 'video',
+      videoEmbeddable: 'true',
+      safeSearch: 'strict',
+    });
+    try {
+      const response = await fetch(`${API_BASE}/search?${params.toString()}`);
+      if (!response.ok) throw new Error('API response failure');
+      const data = await response.json();
+      const videos = data.items.map(item => ({
+        videoId: item.id.videoId,
+        title: item.snippet.title,
+        thumbnail: item.snippet.thumbnails.medium.url,
+        channelTitle: item.snippet.channelTitle,
+        channelId: item.snippet.channelId,
+      }));
+      if(videos.length === 0) throw new Error('No related videos found');
+      videos.forEach(video => {
+        relatedVideoList.appendChild(createRelatedVideoCard(video));
+      });
+    } catch {
+      // fallback: search by keyword title
+      const fallbackVideos = await fetchVideos(keyword, null, selectedCategory);
+      fallbackVideos.forEach(video => {
+        if(video.videoId !== videoId)
+          relatedVideoList.appendChild(createRelatedVideoCard(video));
+      });
+    }
+  }
+
+  // Fetch live streams
+  async function fetchLiveStreams(maxResults = 5) {
+    liveList.innerHTML = '';
+    // Use search api to get live videos
+    const params = new URLSearchParams({
+      key: API_KEY,
+      part: 'snippet',
+      maxResults: maxResults.toString(),
+      type: 'video',
+      eventType: 'live',
+      videoEmbeddable: 'true',
+      safeSearch: 'strict',
+    });
+    try {
+      const response = await fetch(`${API_BASE}/search?${params.toString()}`);
+      if (!response.ok) throw new Error('API live streams failure');
+      const data = await response.json();
+      const videos = data.items.map(item => ({
+        videoId: item.id.videoId,
+        title: item.snippet.title,
+        thumbnail: item.snippet.thumbnails.medium.url,
+        channelTitle: item.snippet.channelTitle,
+        channelId: item.snippet.channelId,
+      }));
+      if(videos.length === 0) {
+        liveList.textContent = 'Tidak ada live streaming sekarang.';
+      } else {
+        videos.forEach(video => {
+          liveList.appendChild(createLiveStreamCard(video));
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching live streams', err);
+      liveList.textContent = 'Gagal memuat live streaming.';
+    }
+  }
+
+  // Render categories bar dynamically
+  function renderCategories() {
+    categoryBar.innerHTML = '';
+    categories.forEach(cat => {
+      const tab = document.createElement('div');
+      tab.className = 'category-tab';
+      tab.textContent = cat.title;
+      tab.dataset.catId = cat.id;
+      if(cat.id === selectedCategory){
+        tab.classList.add('active');
+      }
+      tab.onclick = () => {
+        if(isFetching) return;
+        selectedCategory = cat.id;
+        videoListEl.innerHTML = '';
+        nextPageToken = null;
+        currentQuery = '';
+        renderCategories();
+        fetchAndAppendVideos();
+      };
+      categoryBar.appendChild(tab);
+    });
+  }
+
+  // Fetch and append videos in video list (initial or load more)
+  async function fetchAndAppendVideos() {
+    if(isFetching) return;
+    const videos = await fetchVideos(currentQuery, nextPageToken, selectedCategory);
+    if (videos.length === 0 && videoListEl.children.length === 0) {
+      videoListEl.innerHTML = '<p style="color:#aaa; user-select:none;">Tidak ada video ditemukan.</p>';
+    } else {
+      // Append video cards
+      videos.forEach(video => {
+        videoListEl.appendChild(createVideoCard(video));
+      });
+    }
+  }
+
+  // Like button handler
+  btnLike.onclick = () => {
+    if(!currentVideo) return;
+    const vid = currentVideo.videoId;
+    const liked = likedVideos[vid] || 0;
+    const disliked = dislikedVideos[vid] || 0;
+    if(liked > 0) {
+      // Remove like
+      delete likedVideos[vid];
+    } else {
+      likedVideos[vid] = 1;
+      if(disliked > 0) delete dislikedVideos[vid];
+    }
+    localStorage.setItem('streamhub_likes', JSON.stringify(likedVideos));
+    localStorage.setItem('streamhub_dislikes', JSON.stringify(dislikedVideos));
+    updateVideoStats(vid, currentVideo.channelId);
+  };
+
+  // Dislike button handler
+  btnDislike.onclick = () => {
+    if(!currentVideo) return;
+    const vid = currentVideo.videoId;
+    const disliked = dislikedVideos[vid] || 0;
+    const liked = likedVideos[vid] || 0;
+    if(disliked > 0) {
+      // Remove dislike
+      delete dislikedVideos[vid];
+    } else {
+      dislikedVideos[vid] = 1;
+      if(liked > 0) delete likedVideos[vid];
+    }
+    localStorage.setItem('streamhub_likes', JSON.stringify(likedVideos));
+    localStorage.setItem('streamhub_dislikes', JSON.stringify(dislikedVideos));
+    updateVideoStats(vid, currentVideo.channelId);
+  };
+
+  // Follow button handler
+  btnFollow.onclick = () => {
+    if(!currentVideo) return;
+    const cid = currentVideo.channelId;
+    const following = !!followedChannels[cid];
+    if(following) {
+      delete followedChannels[cid];
+    } else {
+      followedChannels[cid] = Math.floor(100000 + Math.random() * 9900000);
+    }
+    localStorage.setItem('streamhub_followed', JSON.stringify(followedChannels));
+    updateVideoStats(currentVideo.videoId, cid);
+  };
+
+  // Share button handler
+  btnShare.onclick = (evt) => {
+    evt.stopPropagation();
+    if(shareDropdown.style.display === 'block') {
+      hideShareDropdown();
+      return;
+    }
+    showShareDropdown();
+  };
+
+  // Show share dropdown with current video URL
+  function showShareDropdown() {
+    if(!currentVideo) return;
+    const url = `https://www.youtube.com/watch?v=${currentVideo.videoId}`;
+    shareLinkInput.value = url;
+    shareDropdown.style.display = 'block';
+    shareDropdown.style.top = (btnShare.getBoundingClientRect().bottom + window.scrollY + 8) + 'px';
+    shareDropdown.style.left = (btnShare.getBoundingClientRect().left + window.scrollX - 230 + btnShare.offsetWidth) + 'px';
+    shareLinkInput.focus();
+    shareLinkInput.select();
+  }
+  // Hide share dropdown
+  function hideShareDropdown() {
+    shareDropdown.style.display = 'none';
+  }
+
+  // Close share dropdown on outside click
+  document.body.addEventListener('click', () => hideShareDropdown());
+  shareDropdown.addEventListener('click', e => e.stopPropagation());
+
+  // Comment form submit handler
+  commentForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const text = commentInput.value.trim();
+    if(text === '') return;
+    addComment(text);
+    commentInput.value = '';
+  });
+
+  // Handle infinite scrolling on video list
+  videoListSection.addEventListener('scroll', () => {
+    if(isFetching || !nextPageToken) return;
+    const bottomReached = videoListSection.scrollTop + videoListSection.clientHeight >= videoListSection.scrollHeight - 50;
+    if(bottomReached) {
+      fetchAndAppendVideos();
+    }
+  });
+
+  // Logo click returns home (clear query, reset category, reload videos)
+  logoEl.onclick = () => {
+    currentQuery = '';
+    searchInput.value = '';
+    selectedCategory = '';
+    nextPageToken = null;
+    videoListEl.innerHTML = '';
+    renderCategories();
+    fetchAndAppendVideos();
+    // Scroll video list to top
+    videoListSection.scrollTop = 0;
+  };
+
+  // Search action
+  function doSearch() {
+    const val = searchInput.value.trim();
+    if(val === '') return;
+    currentQuery = val;
+    nextPageToken = null;
+    videoListEl.innerHTML = '';
+    fetchAndAppendVideos();
+  }
+  searchBtn.onclick = doSearch;
+  searchInput.onkeydown = e => {
+    if(e.key === 'Enter') {
+      e.preventDefault();
+      doSearch();
+    }
+  };
+
+  // Ads slider rotation
+  function rotateAds() {
+    adIndex = (adIndex + 1) % ads.length;
+    const ad = ads[adIndex];
+    adImage.src = ad.img;
+    adImage.alt = ad.cta;
+    adCTA.textContent = ad.cta;
+  }
+  adImage.onclick = () => {
+    window.open(ads[adIndex].url, '_blank');
+  };
+  adCTA.onclick = () => {
+    window.open(ads[adIndex].url, '_blank');
+  };
+
+  // Load video history recommendations related to history keywords
+  async function loadRecommendationsFromHistory() {
+    if(history.length === 0) return;
+    // Use most recent video's title keywords as query
+    const recentTitle = history[0].title;
+    let words = recentTitle.split(' ').filter(w => w.length > 3);
+    if(words.length > 5) words = words.slice(0,5);
+    const query = words.join(' ');
+    if(!query) return;
+    // Get videos based on query
+    const recVideos = await fetchVideos(query, null, selectedCategory);
+    if(recVideos.length === 0) return;
+    // Clear and add recommendations to related video list area
+    relatedVideoList.innerHTML = '';
+    recVideos.forEach(video => {
+      if(!history.find(h => h.videoId === video.videoId))
+        relatedVideoList.appendChild(createRelatedVideoCard(video));
+    });
+  }
+
+  // Initialize categories, live streams and default videos
+  function init() {
+    renderCategories();
+    fetchAndAppendVideos();
+    fetchLiveStreams();
+    rotateAds();
+    setInterval(rotateAds, 8000);
+  }
+
+  // On page load
+  window.addEventListener('load', () => {
+    init();
+  });
+
+})();
+</script>
+</body>
+</html>
